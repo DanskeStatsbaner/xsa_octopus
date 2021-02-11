@@ -12,12 +12,12 @@ pipeline {
         disableConcurrentBuilds()
     }
     environment {
-        projectName  = "XSA_OCTOPUS"
+        projectName  = "xsa_octopus"
         deployTo = "sit"
         version = "1.0.0.${env.BUILD_NUMBER}"
         suffix = "${env.GIT_COMMIT}-${env.GIT_BRANCH.replace('/', '-')}"
         packageVersion = "${version}-${suffix}"
-        jobName = "XSA_OCTOPUS"
+        jobName = "xsa_octopus"
         artifactoryServerId = "artifactory"   
     }
 
