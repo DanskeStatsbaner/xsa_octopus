@@ -1,6 +1,6 @@
 FROM buildpack-deps:stretch-curl
 
-ARG OCTOPUSSZIP
+ARG OCTOPUSZIP
 ENV VERSION 0.1
 ENV OCTOPUS=/octopus/
 ENV PATH=$PATH:${OCTOPUS}/
