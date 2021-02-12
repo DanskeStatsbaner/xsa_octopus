@@ -1,5 +1,4 @@
 pipeline {
-
     agent {
         label "linux"
     }
@@ -20,64 +19,28 @@ pipeline {
         jobName = "xsa_octopus"
         artifactoryServerId = "artifactory"   
     }
-
     stages {
-        stage ("Stash files") {
+        stage ("Build docker") {
             steps {
-                stash includes: "*.ps1", name: "RootPSscripts", useDefaultExcludes: false
-                stash includes: "src/Cloners/*.ps1", name: "ClonersPSscripts", useDefaultExcludes: false
-                stash includes: "src/Core/*.ps1", name: "CorePSscripts", useDefaultExcludes: false
-                stash includes: "src/DataAccess/*.ps1", name: "DataAccessPSscripts", useDefaultExcludes: false
+                sh "docker build -f XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}/${projectName}:${packageVersion}"
+                sh "docker tag ${artifactoryDocker}/${projectName}:${packageVersion} ${artifactoryDocker}/${projectName}:latest"
+                rtDockerPush(
+                    serverId: "${artifactoryServerId}",
+                    image: "${artifactoryDocker}/${projectName}:${packageVersion}",
+                    targetRepo: 'docker-local',
+                    buildNumber: "${packageVersion}",
+                    buildName: "${projectName}"
+                )
+                rtDockerPush(
+                    serverId: "${artifactoryServerId}",
+                    image: "${artifactoryDocker}/${projectName}:latest",
+                    targetRepo: 'docker-local',
+                    buildNumber: "${packageVersion}",
+                    buildName: "${projectName}"
+                )
+                rtPublishBuildInfo (buildNumber: "${packageVersion}", buildName: "${projectName}", serverId: "${artifactoryServerId}")
             }
         }
-        
-        stage ("Publish Artifacts") {
-            agent {
-                docker {
-                    image "octopusdeploy/octo"
-                    args '--entrypoint=\'\''
-                }
-		    }
-                steps {
-                unstash "RootPSscripts"
-                unstash "ClonersPSscripts"
-                unstash "CorePSscripts"
-                unstash "DataAccessPSscripts"
-                
-                sh "rm -rf dataART.${projectName}.${version}"
-                fileOperations([ 
-                        fileCopyOperation(
-                                flattenFiles: true,
-                                includes: "*.ps1",
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/"),
-                        fileCopyOperation(
-                                flattenFiles: true,
-                                includes: "src/Cloners/*.ps1",
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/src/Cloners/"),
-                        fileCopyOperation(
-                                flattenFiles: true,
-                                includes: "src/Core/*.ps1",
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/src/Core/"),
-                        fileCopyOperation(
-                                flattenFiles: true,
-                                includes: "src/DataAccess/*.ps1",
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/src/DataAccess/")])
-
-                sh """ octo pack --id="dataART.${projectName}" --version="${packageVersion}" --basepath="$WORKSPACE/dataART.${projectName}.${version}" --outFolder=$WORKSPACE """
-                
-                rtUpload(
-                    spec: '''{ "files": [
-                        {
-                            "pattern": "dataART.${projectName}.${packageVersion}.nupkg",
-                            "target": "octopus/"
-                        }
-                    ] }''',
-                    buildNumber: "${packageVersion}", buildName: "dataART.${projectName}",
-                    serverId: "${artifactoryServerId}"
-                )
-                rtPublishBuildInfo(buildNumber: "${packageVersion}", buildName: "dataART.${projectName}", serverId: "${artifactoryServerId}")
-             }
-        }  
         stage ("Octopus sit") {
             agent {
                 docker {
@@ -100,7 +63,6 @@ pipeline {
                     octo deploy-release $hostargs --deployto=${deployTo} --waitfordeployment --deploymentTimeout=00:20:00
                 """
             }
-        }        
-
+        }
     }
 }
