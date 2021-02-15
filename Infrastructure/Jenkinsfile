@@ -22,7 +22,7 @@ pipeline {
     stages {
         stage ("Build docker") {
             steps {
-                sh "docker build -f XSA_OCTOPUS_DOCKER\Dockerfile -t ${artifactoryDocker}\${projectName}:${packageVersion} --build-arg OCTOPUSZIP=XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip ."
+                sh "docker build -f XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}\${projectName}:${packageVersion} --build-arg OCTOPUSZIP=XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip ."
                 sh "docker tag ${artifactoryDocker}\${projectName}:${packageVersion} ${artifactoryDocker}\${projectName}:latest"
                 rtDockerPush(
                     serverId: "${artifactoryServerId}",
