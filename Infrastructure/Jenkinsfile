@@ -23,8 +23,9 @@ pipeline {
         stage ("Build docker") {
             agent { label "windows" }
             steps {
-                sh "docker build -f XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}/${projectName}:${packageVersion} --build-arg OCTOPUSZIP=XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip ."
-                sh "docker tag ${artifactoryDocker}/${projectName}:${packageVersion} ${artifactoryDocker}/${projectName}:latest"
+                docker build -f XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}/${projectName}:${packageVersion} --build-arg OCTOPUSZIP=XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip
+                docker tag ${artifactoryDocker}/${projectName}:${packageVersion} ${artifactoryDocker}/${projectName}:latest
+                
                 rtDockerPush(
                     serverId: "${artifactoryServerId}",
                     image: "${artifactoryDocker}/${projectName}:${packageVersion}",
