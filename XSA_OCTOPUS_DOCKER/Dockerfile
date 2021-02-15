@@ -21,4 +21,4 @@ RUN apt-get update && \
     chmod --recursive 777 ${OCTOPUS}
 
 USER piper
-WORKDIR ${OCTOPUS}
+WORKDIR ${OCTOPUS}/SpaceCloner-master/
