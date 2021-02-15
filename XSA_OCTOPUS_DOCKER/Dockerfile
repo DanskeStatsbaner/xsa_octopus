@@ -6,12 +6,11 @@ RUN powershell -Command \
 
   # Download software ; \
 
-  copy-item ${OCTOPUSZIP} --Destination c:\${OCTOPUSZIP}
+  copy-item ${OCTOPUSZIP} --Destination c:\${OCTOPUSZIP} ; \
 
   # Install Software ; \
 
-#  Expand-Archive -Path c:\${OCTOPUSZIP} -DestinationPath c:\octopus ; \
-  unzip -d c:\octopus ${OCTOPUSZIP}
+  Expand-Archive -Path c:\${OCTOPUSZIP} -DestinationPath c:\octopus ; \
 
 # Remove unneeded files ; \
 
