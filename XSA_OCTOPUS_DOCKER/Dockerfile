@@ -1,12 +1,66 @@
-FROM buildpack-deps:stretch-curl
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# Docker image file that describes an Ubuntu16.04 image with PowerShell installed from Microsoft APT Repo
+
+FROM ubuntu:16.04 AS installer-env
 
 ARG OCTOPUSZIP
+ARG PS_VERSION=6.2.0
+ARG PS_PACKAGE=powershell_${PS_VERSION}-1.ubuntu.16.04_amd64.deb
+ARG PS_PACKAGE_URL=https://github.com/PowerShell/PowerShell/releases/download/v${PS_VERSION}/${PS_PACKAGE}
+
+COPY ${OCTOPUSZIP} /tmp/${OCTOPUSZIP}
+
 ENV VERSION 0.1
 ENV OCTOPUS=/octopus/
 ENV PATH=$PATH:${OCTOPUS}/
 
-COPY ${OCTOPUSZIP} /tmp/${OCTOPUSZIP}
+# Define ENVs for Localization/Globalization
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
+    LC_ALL=en_US.UTF-8 \
+    LANG=en_US.UTF-8 \
+    # set a fixed location for the Module analysis cache
+    PSModuleAnalysisCachePath=/var/cache/microsoft/powershell/PSModuleAnalysisCache/ModuleAnalysisCache \
+    POWERSHELL_DISTRIBUTION_CHANNEL=PSDocker-Ubuntu-16.04
 
+# Install dependencies and clean up
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+    # curl is required to grab the Linux package
+        curl \
+    # less is required for help in powershell
+        less \
+    # requied to setup the locale
+        locales \
+    # required for SSL
+        ca-certificates \
+        gss-ntlmssp \
+    # PowerShell remoting over SSH dependencies
+        openssh-client \
+    # Download the Linux package and save it
+    && echo ${PS_PACKAGE_URL} \
+    && curl -sSL ${PS_PACKAGE_URL} -o /tmp/powershell.deb \
+    && apt-get install --no-install-recommends -y /tmp/powershell.deb \
+    && apt-get dist-upgrade -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && locale-gen $LANG && update-locale \
+    # remove powershell package
+    && rm /tmp/powershell.deb \
+    # intialize powershell module cache
+    # and disable telemetry
+    && export POWERSHELL_TELEMETRY_OPTOUT=1 \
+    && pwsh \
+        -NoLogo \
+        -NoProfile \
+        -Command " \
+          \$ErrorActionPreference = 'Stop' ; \
+          \$ProgressPreference = 'SilentlyContinue' ; \
+          while(!(Test-Path -Path \$env:PSModuleAnalysisCachePath)) {  \
+            Write-Host "'Waiting for $env:PSModuleAnalysisCachePath'" ; \
+            Start-Sleep -Seconds 6 ; \
+          }"
 
 # ps needs to be available to be able to be used in docker.inside, see https://issues.jenkins-ci.org/browse/JENKINS-40101.
 RUN apt-get update && \
@@ -22,3 +76,7 @@ RUN apt-get update && \
 
 USER piper
 WORKDIR ${OCTOPUS}/SpaceCloner-master/
+
+# Use PowerShell as the default shell
+# Use array to avoid Docker prepending /bin/sh -c
+CMD [ "pwsh" ]
