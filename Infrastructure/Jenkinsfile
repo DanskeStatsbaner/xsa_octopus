@@ -23,7 +23,7 @@ pipeline {
         stage ("Build docker") {
             agent { label "windows" }
             steps {
-               cmd "DIR"
+               echo "DIR"
             }
         }
         stage ("Octopus sit") {
