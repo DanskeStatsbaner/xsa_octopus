@@ -71,5 +71,4 @@ ENV POWERSHELL_TELEMETRY_OPTOUT="0"
 
 COPY ${OCTOPUSZIP} c:\${OCTOPUSZIP}
 CMD ["powershell.exe", "Expand-Archive -LiteralPath 'C:\${OCTOPUSZIP}' -DestinationPath 'c:\'"
-CD "C:\SpaceCloner-master\"
 
