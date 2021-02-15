@@ -10,8 +10,9 @@ RUN powershell -Command \
 
   # Install Software ; \
 
-  Expand-Archive -Path c:\${OCTOPUSZIP} -DestinationPath c:\octopus ; \
+#  Expand-Archive -Path c:\${OCTOPUSZIP} -DestinationPath c:\octopus ; \
+  unzip -d c:\octopus ${OCTOPUSZIP}
 
-  # Remove unneeded files ; \
+# Remove unneeded files ; \
 
   Remove-Item c:\${OCTOPUSZIP}
