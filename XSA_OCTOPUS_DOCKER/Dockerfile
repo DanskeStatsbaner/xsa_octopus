@@ -1,82 +1,75 @@
+# escape=`
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-# Docker image file that describes an Ubuntu16.04 image with PowerShell installed from Microsoft APT Repo
-
-FROM ubuntu:16.04 AS installer-env
+ARG WindowsServerCoreRepo=mcr.microsoft.com/windows/servercore
 
 ARG OCTOPUSZIP
+
+# Use server core as an installer container to extract PowerShell,
+# As this is a multi-stage build, this stage will eventually be thrown away
+FROM ${WindowsServerCoreRepo}:2004 AS installer-env
+
 ARG PS_VERSION=6.2.0
-ARG PS_PACKAGE=powershell_${PS_VERSION}-1.ubuntu.16.04_amd64.deb
-ARG PS_PACKAGE_URL=https://github.com/PowerShell/PowerShell/releases/download/v${PS_VERSION}/${PS_PACKAGE}
+ARG PS_PACKAGE_URL=https://github.com/PowerShell/PowerShell/releases/download/v${PS_VERSION}/PowerShell-${PS_VERSION}-win-x64.zip
 
-COPY ${OCTOPUSZIP} /tmp/${OCTOPUSZIP}
+SHELL ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-command"]
 
-ENV VERSION 0.1
-ENV OCTOPUS=/octopus/
-ENV PATH=$PATH:${OCTOPUS}/
+ARG PS_PACKAGE_URL_BASE64
 
-# Define ENVs for Localization/Globalization
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
-    LC_ALL=en_US.UTF-8 \
-    LANG=en_US.UTF-8 \
+RUN Write-host "Verifying valid Version..."; `
+    if (!($env:PS_VERSION -match '^\d+\.\d+\.\d+(-\w+(\.\d+)?)?$' )) { `
+        throw ('PS_Version ({0}) must match the regex "^\d+\.\d+\.\d+(-\w+(\.\d+)?)?$"' -f $env:PS_VERSION) `
+    } `
+    $ProgressPreference = 'SilentlyContinue'; `
+    if($env:PS_PACKAGE_URL_BASE64){ `
+        Write-host "decoding: $env:PS_PACKAGE_URL_BASE64" ;`
+        $url = [System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String($env:PS_PACKAGE_URL_BASE64)) `
+    } else { `
+        Write-host "using url: $env:PS_PACKAGE_URL" ;`
+        $url = $env:PS_PACKAGE_URL `
+    } `
+    Write-host "downloading: $url"; `
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; `
+    Invoke-WebRequest -Uri $url -outfile /powershell.zip -verbose; `
+    Expand-Archive powershell.zip -DestinationPath  \PowerShell
+
+# Install PowerShell into WindowsServerCore
+FROM ${WindowsServerCoreRepo}:2004
+
+# Copy PowerShell Core from the installer container
+ENV ProgramFiles="C:\Program Files" `
     # set a fixed location for the Module analysis cache
-    PSModuleAnalysisCachePath=/var/cache/microsoft/powershell/PSModuleAnalysisCache/ModuleAnalysisCache \
-    POWERSHELL_DISTRIBUTION_CHANNEL=PSDocker-Ubuntu-16.04
+    PSModuleAnalysisCachePath="C:\Users\Public\AppData\Local\Microsoft\Windows\PowerShell\docker\ModuleAnalysisCache" `
+    # Persist %PSCORE% ENV variable for user convenience
+    PSCORE="$ProgramFiles\PowerShell\pwsh.exe" `
+    POWERSHELL_DISTRIBUTION_CHANNEL="PSDocker-WindowsServerCore-2004" `
+    POWERSHELL_TELEMETRY_OPTOUT="1"
 
-# Install dependencies and clean up
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-    # curl is required to grab the Linux package
-        curl \
-    # less is required for help in powershell
-        less \
-    # requied to setup the locale
-        locales \
-    # required for SSL
-        ca-certificates \
-        gss-ntlmssp \
-    # PowerShell remoting over SSH dependencies
-        openssh-client \
-    # Download the Linux package and save it
-    && echo ${PS_PACKAGE_URL} \
-    && curl -sSL ${PS_PACKAGE_URL} -o /tmp/powershell.deb \
-    && apt-get install --no-install-recommends -y /tmp/powershell.deb \
-    && apt-get dist-upgrade -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && locale-gen $LANG && update-locale \
-    # remove powershell package
-    && rm /tmp/powershell.deb \
-    # intialize powershell module cache
-    # and disable telemetry
-    && export POWERSHELL_TELEMETRY_OPTOUT=1 \
-    && pwsh \
-        -NoLogo \
-        -NoProfile \
-        -Command " \
-          \$ErrorActionPreference = 'Stop' ; \
-          \$ProgressPreference = 'SilentlyContinue' ; \
-          while(!(Test-Path -Path \$env:PSModuleAnalysisCachePath)) {  \
-            Write-Host "'Waiting for $env:PSModuleAnalysisCachePath'" ; \
-            Start-Sleep -Seconds 6 ; \
+# Copy PowerShell Core from the installer container
+COPY --from=installer-env ["\\PowerShell\\", "$ProgramFiles\\PowerShell\\latest"]
+
+# Set the path
+RUN setx /M PATH "%ProgramFiles%\PowerShell\latest;%PATH%;"
+
+# intialize powershell module cache
+RUN pwsh `
+        -NoLogo `
+        -NoProfile `
+        -Command " `
+          $stopTime = (get-date).AddMinutes(15); `
+          $ErrorActionPreference = 'Stop' ; `
+          $ProgressPreference = 'SilentlyContinue' ; `
+          while(!(Test-Path -Path $env:PSModuleAnalysisCachePath)) {  `
+            Write-Host "'Waiting for $env:PSModuleAnalysisCachePath'" ; `
+            if((get-date) -gt $stopTime) { throw 'timout expired'} `
+            Start-Sleep -Seconds 6 ; `
           }"
 
-# ps needs to be available to be able to be used in docker.inside, see https://issues.jenkins-ci.org/browse/JENKINS-40101.
-RUN apt-get update && \
-    apt-get install --yes --no-install-recommends procps unzip && \
-    rm -rf /var/lib/apt/lists/* && \
-    addgroup -gid 1000 piper && \
-    useradd piper --uid 1000 --gid 1000 --shell /bin/bash --create-home && \
-    mkdir --parents ${OCTOPUS} && \
-    unzip -d ${OCTOPUS} /tmp/${OCTOPUSZIP} && \
-    rm --recursive --force /tmp/${OCTOPUSZIP} && \
-    chown --recursive piper:piper ${OCTOPUS} && \
-    chmod --recursive 777 ${OCTOPUS}
+# re-enable telemetry
+ENV POWERSHELL_TELEMETRY_OPTOUT="0"
 
-USER piper
-WORKDIR ${OCTOPUS}/SpaceCloner-master/
+COPY ${OCTOPUSZIP} c:\${OCTOPUSZIP}
+CMD ["powershell.exe", "Expand-Archive -LiteralPath 'C:\${OCTOPUSZIP}' -DestinationPath 'c:\'"
+CD "C:\SpaceCloner-master\"
 
-# Use PowerShell as the default shell
-# Use array to avoid Docker prepending /bin/sh -c
-CMD [ "pwsh" ]
