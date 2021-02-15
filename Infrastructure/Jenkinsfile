@@ -23,7 +23,7 @@ pipeline {
         stage ("Build docker") {
             agent { label "windows" }
             steps {
-                docker build -f c:\workspace\DA-System_xsa_octopus_master/XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}/${projectName}:${packageVersion} --build-arg OCTOPUSZIP=c:\workspace\DA-System_xsa_octopus_master/XSA_OCTOPUS_DOCKER/XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip
+                docker build -f c:/workspace/DA-System_xsa_octopus_master/XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}/${projectName}:${packageVersion} --build-arg OCTOPUSZIP=c:/workspace/DA-System_xsa_octopus_master/XSA_OCTOPUS_DOCKER/XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip
                 docker tag ${artifactoryDocker}/${projectName}:${packageVersion} ${artifactoryDocker}/${projectName}:latest
                 
                 rtDockerPush(
