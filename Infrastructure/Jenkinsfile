@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label "windows"
+        label "linux"
     }
     parameters {
         booleanParam(name: 'TagLatest', defaultValue: false, description: 'Tag this image as latest')
@@ -21,19 +21,20 @@ pipeline {
     }
     stages {
         stage ("Build docker") {
+            agent { label "windows" }
             steps {
-                sh "docker build -f XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}\${projectName}:${packageVersion} --build-arg OCTOPUSZIP=XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip ."
-                sh "docker tag ${artifactoryDocker}\${projectName}:${packageVersion} ${artifactoryDocker}\${projectName}:latest"
+                sh "docker build -f XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}/${projectName}:${packageVersion} --build-arg OCTOPUSZIP=XSA_OCTOPUS_DOCKER/SpaceCloner-master.zip ."
+                sh "docker tag ${artifactoryDocker}/${projectName}:${packageVersion} ${artifactoryDocker}/${projectName}:latest"
                 rtDockerPush(
                     serverId: "${artifactoryServerId}",
-                    image: "${artifactoryDocker}\${projectName}:${packageVersion}",
+                    image: "${artifactoryDocker}/${projectName}:${packageVersion}",
                     targetRepo: 'docker-local',
                     buildNumber: "${packageVersion}",
                     buildName: "${projectName}"
                 )
                 rtDockerPush(
                     serverId: "${artifactoryServerId}",
-                    image: "${artifactoryDocker}\${projectName}:latest",
+                    image: "${artifactoryDocker}/${projectName}:latest",
                     targetRepo: 'docker-local',
                     buildNumber: "${packageVersion}",
                     buildName: "${projectName}"
@@ -47,7 +48,7 @@ pipeline {
                     image "octopusdeploy/octo"
                     args '--entrypoint=\'\''
                 }
-		    }
+                                               }
             options { skipDefaultCheckout true }
             environment {
                 deployTo = "sit"
@@ -66,3 +67,4 @@ pipeline {
         }
     }
 }
+
