@@ -24,26 +24,44 @@ pipeline {
     stages {
         stage ("Stash files") {
             steps {
-                stash includes: "Infrastructure/*.ps1", name: "PSscripts", useDefaultExcludes: false
+                unzip zipFile: "$WORKSPACE/SpaceCloner-master.zip", dir: "$WORKSPACE/"
+                stash includes: "SpaceCloner-master/*.ps1", name: "RootScripts", useDefaultExcludes: false
+                stash includes: "SpaceCloner-master/src/Cloners/*.ps1", name: "ClonerScripts", useDefaultExcludes: false
+                stash includes: "SpaceCloner-master/src/Core/*.ps1", name: "CoreScripts", useDefaultExcludes: false
+                stash includes: "SpaceCloner-master/src/DataAccess/*.ps1", name: "DataAccessScripts", useDefaultExcludes: false
             }
         }
-        
         stage ("Publish Artifacts") {
             agent {
                 docker {
                     image "octopusdeploy/octo"
                     args '--entrypoint=\'\''
                 }
-		    }
+                                               }
                 steps {
-                unstash "PSscripts"
+                unstash "RootScripts"
+                unstash "ClonerScripts"
+                unstash "CoreScripts"
+                unstash "DataAccessScripts"
                 
                 sh "rm -rf dataART.${projectName}.${version}"
                 fileOperations([ 
                         fileCopyOperation(
                                 flattenFiles: true,
-                                includes: "Infrastructure/*.ps1",
-                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/")])
+                                includes: "SpaceCloner-master/*.ps1",
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/SpaceCloner-master/"), 
+                        fileCopyOperation(
+                                flattenFiles: true,
+                                includes: "SpaceCloner-master/src/Cloners/*.ps1",
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/SpaceCloner-master/src/Cloners/"), 
+                        fileCopyOperation(
+                                flattenFiles: true,
+                                includes: "SpaceCloner-master/src/Core/*.ps1",
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/SpaceCloner-master/src/Core/"), 
+                        fileCopyOperation(
+                                flattenFiles: true,
+                                includes: "SpaceCloner-master/src/DataAccess/*.ps1",
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/SpaceCloner-master/src/DataAccess/")])
 
                 sh """ octo pack --id="dataART.${projectName}" --version="${packageVersion}" --basepath="$WORKSPACE/dataART.${projectName}.${version}" --outFolder=$WORKSPACE """
                 
@@ -66,7 +84,7 @@ pipeline {
                     image "octopusdeploy/octo"
                     args '--entrypoint=\'\''
                 }
-		    }
+                                               }
             options { skipDefaultCheckout true }
             environment {
                 deployTo = "sit"
