@@ -1,4 +1,5 @@
 pipeline {
+
     agent {
         label "linux"
     }
@@ -19,35 +20,53 @@ pipeline {
         jobName = "xsa_octopus"
         artifactoryServerId = "artifactory"   
     }
+
     stages {
-        stage ("Build docker") {
+        stage ("Stash files") {
             steps {
-                sh "docker build -f XSA_OCTOPUS_DOCKER/Dockerfile -t ${artifactoryDocker}/${projectName}:${packageVersion} --build-arg OCTOPUSZIP=XSA_OCTOPUSY_DOCKER/SpaceCloner-master.zip ."
-                sh "docker tag ${artifactoryDocker}/${projectName}:${packageVersion} ${artifactoryDocker}/${projectName}:latest"
-                rtDockerPush(
-                    serverId: "${artifactoryServerId}",
-                    image: "${artifactoryDocker}/${projectName}:${packageVersion}",
-                    targetRepo: 'docker-local',
-                    buildNumber: "${packageVersion}",
-                    buildName: "${projectName}"
-                )
-                rtDockerPush(
-                    serverId: "${artifactoryServerId}",
-                    image: "${artifactoryDocker}/${projectName}:latest",
-                    targetRepo: 'docker-local',
-                    buildNumber: "${packageVersion}",
-                    buildName: "${projectName}"
-                )
-                rtPublishBuildInfo (buildNumber: "${packageVersion}", buildName: "${projectName}", serverId: "${artifactoryServerId}")
-            }            
+                stash includes: "Infrastructure/*.ps1", name: "PSscripts", useDefaultExcludes: false
+            }
         }
+        
+        stage ("Publish Artifacts") {
+            agent {
+                docker {
+                    image "octopusdeploy/octo"
+                    args '--entrypoint=\'\''
+                }
+		    }
+                steps {
+                unstash "PSscripts"
+                
+                sh "rm -rf dataART.${projectName}.${version}"
+                fileOperations([ 
+                        fileCopyOperation(
+                                flattenFiles: true,
+                                includes: "Infrastructure/*.ps1",
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/")])
+
+                sh """ octo pack --id="dataART.${projectName}" --version="${packageVersion}" --basepath="$WORKSPACE/dataART.${projectName}.${version}" --outFolder=$WORKSPACE """
+                
+                rtUpload(
+                    spec: '''{ "files": [
+                        {
+                            "pattern": "dataART.${projectName}.${packageVersion}.nupkg",
+                            "target": "octopus/"
+                        }
+                    ] }''',
+                    buildNumber: "${packageVersion}", buildName: "dataART.${projectName}",
+                    serverId: "${artifactoryServerId}"
+                )
+                rtPublishBuildInfo(buildNumber: "${packageVersion}", buildName: "dataART.${projectName}", serverId: "${artifactoryServerId}")
+             }
+        }  
         stage ("Octopus sit") {
             agent {
                 docker {
                     image "octopusdeploy/octo"
                     args '--entrypoint=\'\''
                 }
-                                               }
+		    }
             options { skipDefaultCheckout true }
             environment {
                 deployTo = "sit"
@@ -63,7 +82,7 @@ pipeline {
                     octo deploy-release $hostargs --deployto=${deployTo} --waitfordeployment --deploymentTimeout=00:20:00
                 """
             }
-        }
+        }        
+
     }
 }
-
