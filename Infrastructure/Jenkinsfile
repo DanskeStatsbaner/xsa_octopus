@@ -89,9 +89,9 @@ pipeline {
             environment {
                 deployTo = "sit"
                 releaseversion = "${version}"
-                apiKey = credentials("Octopus-Api")
-                octopusURL = "https://octopus.azure.dsb.dk"
-                hostargs = "--server ${octopusURL} --apiKey ${apiKey} --project ${jobName} --version=${releaseversion} --space=Spaces-3"
+                OCTOPUS_CLI_SERVER = "https://octopus.azure.dsb.dk"
+                OCTOPUS_CLI_API_KEY = credentials("Octopus-Api")
+                hostargs = "--project ${jobName} --version=${releaseversion} --space=Spaces-3"
             }
             steps {
                 addBadge(text: "octopus", icon: "/userContent/octopus_16x16.png", id: "octopus", link: "${octopusURL}/app#/Spaces-3/projects/${jobName}/deployments/releases/${releaseversion}")
