@@ -69,7 +69,7 @@ pipeline {
                     spec: '''{ "files": [
                         {
                             "pattern": "dataART.${projectName}.${packageVersion}.nupkg",
-                            "target": "octopus/"
+                            "target": "octopus-dataarten/"
                         }
                     ] }''',
                     buildNumber: "${packageVersion}", buildName: "dataART.${projectName}",
