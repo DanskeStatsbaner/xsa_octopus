@@ -94,7 +94,7 @@ pipeline {
                 hostargs = "--server ${octopusURL} --apiKey ${apiKey} --project ${jobName} --version=${releaseversion}"
             }
             steps {
-                addBadge(text: "octopus", icon: "/userContent/octopus_16x16.png", id: "octopus", link: "${octopusURL}/app#/Spaces-1/projects/${jobName}/deployments/releases/${releaseversion}")
+                addBadge(text: "octopus", icon: "/userContent/octopus_16x16.png", id: "octopus", link: "${octopusURL}/app#/Spaces-3/projects/${jobName}/deployments/releases/${releaseversion}")
                 sh """
                     octo create-release  $hostargs --defaultpackageversion=${packageVersion}
                     octo deploy-release $hostargs --deployto=${deployTo} --waitfordeployment --deploymentTimeout=00:20:00
