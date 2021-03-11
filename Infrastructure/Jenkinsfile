@@ -25,6 +25,7 @@ pipeline {
         stage ("Stash files") {
             steps {
                 unzip zipFile: "$WORKSPACE/SpaceCloner-master.zip", dir: "$WORKSPACE/"
+                stash includes: "*.ps1", name: "setupOctopusProject", useDefaultExcludes: false
                 stash includes: "SpaceCloner-master/*.ps1", name: "RootScripts", useDefaultExcludes: false
                 stash includes: "SpaceCloner-master/src/Cloners/*.ps1", name: "ClonerScripts", useDefaultExcludes: false
                 stash includes: "SpaceCloner-master/src/Core/*.ps1", name: "CoreScripts", useDefaultExcludes: false
@@ -39,6 +40,7 @@ pipeline {
                 }
                                                }
                 steps {
+                unstash "setupOctopusProject"
                 unstash "RootScripts"
                 unstash "ClonerScripts"
                 unstash "CoreScripts"
@@ -47,6 +49,10 @@ pipeline {
                 sh "rm -rf dataART.${projectName}.${version}"
                 fileOperations([ 
                         fileCopyOperation(
+                                flattenFiles: true,
+                                includes: "*.ps1",
+                                targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/SpaceCloner-master/"), 
+                         fileCopyOperation(
                                 flattenFiles: true,
                                 includes: "SpaceCloner-master/*.ps1",
                                 targetLocation: "$WORKSPACE/dataART.${projectName}.${version}/SpaceCloner-master/"), 
