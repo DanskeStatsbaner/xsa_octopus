@@ -63,12 +63,18 @@ if ($toProjectList.Name -ne $toProjectName)
     $toProjectList = (Invoke-RestMethod -Method Post -Uri "$octopusURL/api/$($space.Id)/projects" -Body ($jsonPayload | ConvertTo-Json -Depth 10) -Headers $header)
 }
 
-# Get toProject deployment process and Variable sets
+# Get toProject deployment process
 foreach ($toProject in $toProjectList)
 {
     $toDeploymentProcess = (Invoke-RestMethod -Method Get -Uri "$octopusURL/api/$($space.Id)/deploymentprocesses/$($toProject.DeploymentProcessId)" -Headers $header)
     $toDeploymentProcess.Steps = $fromDeploymentProcess.Steps
     $updateProject = (Invoke-RestMethod -Method Put -Uri "$octopusURL/api/$($space.Id)/deploymentprocesses/$($toProject.DeploymentProcessId)" -Body ($toDeploymentProcess | ConvertTo-Json -Depth 10) -Headers $header)
-    
-    $toProject.VariableSetId = $fromProject.VariableSetId 
 }
+
+# Get Variable sets
+$librarySet = (Invoke-RestMethod -Method Get -Uri "$octopusURL/api/$($space.Id)/libraryvariablesets/all" -Headers $header) | Where-Object {$_.Name -eq "ArtifactoryDocker"}
+$toProject.IncludedLibraryVariableSetIds += $librarySet.Id
+$librarySet = (Invoke-RestMethod -Method Get -Uri "$octopusURL/api/$($space.Id)/libraryvariablesets/all" -Headers $header) | Where-Object {$_.Name -eq "dataART"}
+$toProject.IncludedLibraryVariableSetIds += $librarySet.Id
+
+$updateProject = (Invoke-RestMethod -Method Put -Uri "$octopusURL/api/$($space.Id)/projects/$($toProject.Id)" -Body ($toProject | ConvertTo-Json -Depth 10) -Headers $header)
