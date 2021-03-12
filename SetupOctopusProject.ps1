@@ -35,9 +35,9 @@ if ($fromProjectList.Name -ne $fromProjectName)
 }
 
 # Get fromProject deployment process
-foreach ($project in $fromProjectList)
+foreach ($fromProject in $fromProjectList)
 {
-    $fromDeploymentProcess = (Invoke-RestMethod -Method Get -Uri "$octopusURL/api/$($space.Id)/deploymentprocesses/$($project.DeploymentProcessId)" -Headers $header)
+    $fromDeploymentProcess = (Invoke-RestMethod -Method Get -Uri "$octopusURL/api/$($space.Id)/deploymentprocesses/$($fromProject.DeploymentProcessId)" -Headers $header)
 }
 
 # Get toProject
@@ -63,11 +63,12 @@ if ($toProjectList.Name -ne $toProjectName)
     $toProjectList = (Invoke-RestMethod -Method Post -Uri "$octopusURL/api/$($space.Id)/projects" -Body ($jsonPayload | ConvertTo-Json -Depth 10) -Headers $header)
 }
 
-# Get toProject deployment process
+# Get toProject deployment process and Variable sets
 foreach ($toProject in $toProjectList)
 {
     $toDeploymentProcess = (Invoke-RestMethod -Method Get -Uri "$octopusURL/api/$($space.Id)/deploymentprocesses/$($toProject.DeploymentProcessId)" -Headers $header)
     $toDeploymentProcess.Steps = $fromDeploymentProcess.Steps
-
     $updateProject = (Invoke-RestMethod -Method Put -Uri "$octopusURL/api/$($space.Id)/deploymentprocesses/$($toProject.DeploymentProcessId)" -Body ($toDeploymentProcess | ConvertTo-Json -Depth 10) -Headers $header)
+    
+    $toProject.VariableSetId = $fromProject.VariableSetId 
 }
