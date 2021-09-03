@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop";
 
 # Define working variables
 
-$header = @{ "X-Octopus-ApiKey" = $octopusAPIKey }
+$header = @{ "X-Octopus-ApiKey" = $octopusAPIKey ; "Cache-Control"="no-cache"; "accept"="application/json"; "content-type" = "application/json"}
 $spaceName = "DataArten"
 $lifeCycleName = "sit-dev-tst-prd"
 
