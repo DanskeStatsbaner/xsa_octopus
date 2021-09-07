@@ -6,7 +6,7 @@ $octopusAPIKey
 )
 $ErrorActionPreference = "Stop";
 
-# Define working variables
+# Define working variables - extended header
 
 $header = @{ "X-Octopus-ApiKey" = $octopusAPIKey ; "Cache-Control"="no-cache"; "accept"="application/json"; "content-type" = "application/json"}
 $spaceName = "DataArten"
