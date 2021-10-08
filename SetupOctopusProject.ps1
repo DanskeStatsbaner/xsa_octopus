@@ -18,6 +18,8 @@ $toProjectGroupName = "CF-containers"
 $toProjectGroupName = "P-containers"
 } elseif  ((($toProjectName.Substring(0,1)).ToUpper() -eq 'S')) {
 $toProjectGroupName = "SI-containers"
+} elseif  ((($toProjectName.Substring(0,1)).ToUpper() -eq 'A')) {
+$toProjectGroupName = "AP-containers"
 } else {
 $toProjectGroupName = "SteamTeam"
 }
